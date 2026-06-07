@@ -32,7 +32,7 @@ npx prisma migrate dev --name init
 npx prisma db seed
 
 # 5. Run it
-npm run dev      # http://localhost:3000
+npm run dev      # http://localhost:3002
 ```
 
 **Demo logins** (created by the seed):
@@ -121,6 +121,13 @@ Duplicate detection runs against **both** existing project rows **and** earlier
 rows in the same file. The summary modal reports total processed, imported,
 skipped (with reasons), and warning rows (with flags).
 
+**Verified against the provided `sample_article_import.xlsx`** (sheet "PubMed
+Export", 25 rows) — the parser produced: **22 imported, 3 skipped** (duplicate
+DOI, duplicate PMID, missing PMID) and **4 warnings** (missing title, the
+`"Twenty twenty"` non-numeric year set to null, missing authors defaulted to
+"Unknown", and a future year of 2035). No code changes were needed; the file's
+columns matched directly.
+
 ---
 
 ## 4. Review workflow
@@ -166,8 +173,6 @@ non-member gets `FORBIDDEN`.
   implies the article is under consideration). A stricter UX would block this.
 - **Sorting** is limited to article columns (title, author, journal, year,
   created). Decision/notes are per-user and not sortable in this phase.
-- No org/project member-management UI yet (the `addMember` procedures exist and
-  are authorized, but aren't surfaced in the UI).
 - No optimistic update for the *bulk* action (it invalidates and refetches) —
   only the single-article decision is optimistic.
 
@@ -188,20 +193,67 @@ non-member gets `FORBIDDEN`.
 
 ## 8. AI usage disclosure
 
-AI coding assistance was used as a pair programmer while building this project:
-scaffolding the T3-style structure, drafting the Prisma schema, tRPC routers,
-import parser, React UI, and tests, then iterating to a clean
-`typecheck` / `test` / `build`. All code was reviewed for correctness, and the
-architecture/scoping decisions (e.g. parse-in-browser, per-user decisions,
-Phase-1 simplifications) were made deliberately and are documented above.
+**Tools used.** An AI coding assistant was used as a pair programmer throughout.
+
+**What was AI-assisted.** Scaffolding the T3-style project structure, drafting the
+Prisma schema, the tRPC routers and authorization helpers, the import parser, the
+React/Tailwind UI, and the Vitest tests. Boilerplate (config files, provider
+wiring) was largely AI-generated.
+
+**What I directed and verified myself.** I made the product/architecture decisions
+(per-user review decisions, parse-in-browser then validate-server-side, the
+authorization model, scope control for this slice). I verified the result by
+running the suite myself: `npm run test` (20 passing), `npm run typecheck` (clean),
+`npm run build` (clean), importing the provided `sample_article_import.xlsx` and
+confirming the 22/3/4 import outcome, and manually exercising sign-in/out, the
+table filters, and the review flow against a local Postgres.
+
+**One example where I corrected AI output.** The first sign-up implementation used
+`z.string().email()` directly on the raw input. A valid address with a stray
+leading/trailing space (common from autofill) failed validation, and the error was
+surfaced to the user as raw JSON. I changed the schema to `z.string().trim()
+.toLowerCase().email()`, trimmed the inputs on the client, and mapped the tRPC
+`zodError` to a friendly field message — see
+[`src/server/api/routers/auth.ts`](src/server/api/routers/auth.ts) and
+[`src/app/auth/signup/page.tsx`](src/app/auth/signup/page.tsx). A second correction:
+the AI initially suggested swapping PostgreSQL for SQLite to avoid local setup; I
+rejected that to stay within the required stack and instead provisioned Postgres.
 
 ---
 
 ## 9. Approximate time spent
 
-~3–4 hours of focused build time for this Phase 1 slice (scaffold → schema →
-backend routers + authz → import parser + tests → frontend table/panel/import →
-verification → docs).
+Roughly 6–8 hours total: project scaffold → Prisma schema + seed → tRPC routers and
+server-side authorization → import parser + tests → the table / review panel /
+import UI → member management → local Postgres setup, verification, and this README.
+
+---
+
+## 10. Deployment status & notes
+
+**Status:** Not deployed at time of writing; runs locally via the steps in §1.
+The app is deploy-ready and the intended target is **AWS** (Amplify Hosting for
+the Next.js app + a managed Postgres). Notes on how each concern is / would be
+handled:
+
+- **Secrets.** Never committed — `.env` is git-ignored and only `.env.example`
+  (with placeholders) is in the repo. In production, `DATABASE_URL`,
+  `NEXTAUTH_SECRET`, and `NEXTAUTH_URL` are set as environment variables in the
+  host's config (Amplify console / AWS Secrets Manager), not in source.
+- **Database migrations.** Schema changes go through Prisma Migrate. Locally:
+  `prisma migrate dev`. In CI/deploy: `prisma migrate deploy` runs against the
+  production database as part of the build step (never edit the DB by hand).
+- **Logs.** Next.js server logs and tRPC errors go to the platform's log stream
+  (CloudWatch on AWS). tRPC returns typed error codes
+  (`UNAUTHORIZED`/`FORBIDDEN`/`CONFLICT`) that surface as toasts client-side.
+- **Failure modes.** DB unreachable → procedures throw and the UI shows its error
+  state with a retry; auth failure → redirect to sign-in; invalid import rows are
+  skipped/flagged rather than failing the whole import; the import write is wrapped
+  in a Prisma transaction so a partial import can't leave the project half-updated.
+- **Cost.** A low-traffic deployment is inexpensive: the app host is pay-per-use
+  (pennies/month at low traffic), and the main cost is the always-on database. A
+  managed Postgres with a free tier (e.g. Neon) keeps the total at roughly
+  $0–$2/month for a demo; a dedicated AWS RDS micro instance is ~$12/month.
 
 ---
 
@@ -212,5 +264,5 @@ See [`.env.example`](.env.example):
 ```
 DATABASE_URL=postgresql://...      # Postgres connection string
 NEXTAUTH_SECRET=...                # openssl rand -base64 32
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://localhost:3002 # must match the dev port (npm run dev = 3002)
 ```
