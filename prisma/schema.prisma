@@ -1,0 +1,127 @@
+// Prisma schema for the Article Review Workspace.
+// Run `npx prisma migrate dev` to create the database, then `npx prisma db seed`.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Enums ----------
+
+enum OrgRole {
+  OWNER
+  MEMBER
+}
+
+enum ProjectRole {
+  OWNER
+  REVIEWER
+}
+
+enum Decision {
+  INCLUDE
+  EXCLUDE
+  MAYBE
+}
+
+// ---------- Users & memberships ----------
+
+model User {
+  id        String   @id @default(cuid())
+  name      String?
+  email     String   @unique
+  password  String // bcrypt hash
+  createdAt DateTime @default(now())
+
+  orgMemberships     OrganizationMember[]
+  projectMemberships ProjectMember[]
+  reviewDecisions    ReviewDecision[]
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  members  OrganizationMember[]
+  projects Project[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  userId         String
+  organizationId String
+  role           OrgRole      @default(MEMBER)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+}
+
+// ---------- Projects & memberships ----------
+
+model Project {
+  id             String       @id @default(cuid())
+  name           String
+  organizationId String
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  members  ProjectMember[]
+  articles Article[]
+}
+
+model ProjectMember {
+  id        String      @id @default(cuid())
+  userId    String
+  projectId String
+  role      ProjectRole @default(REVIEWER)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+}
+
+// ---------- Articles & review decisions ----------
+
+model Article {
+  id              String   @id @default(cuid())
+  pmid            String
+  title           String?
+  authors         String?
+  citation        String?
+  firstAuthor     String?
+  journal         String?
+  publicationYear Int?
+  createDate      String?
+  pmcid           String?
+  nihmsId         String?
+  doi             String?
+  projectId       String
+  createdAt       DateTime @default(now())
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  reviewDecisions ReviewDecision[]
+
+  // Duplicate detection during import relies on these being unique per project.
+  @@unique([projectId, pmid])
+}
+
+model ReviewDecision {
+  id        String   @id @default(cuid())
+  articleId String
+  userId    String
+  decision  Decision
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  article   Article  @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One decision per user per article.
+  @@unique([articleId, userId])
+}
