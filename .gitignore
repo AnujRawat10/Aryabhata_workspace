@@ -36,3 +36,6 @@ yarn-error.log*
 
 # prisma
 prisma/*.db
+
+# Amplify writes runtime env here during build
+.env.production

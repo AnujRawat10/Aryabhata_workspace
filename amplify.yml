@@ -10,6 +10,10 @@ frontend:
         - npm ci
     build:
       commands:
+        # Amplify exposes env vars at build time but not always to the Next.js
+        # server runtime. Write them into .env.production so the running server
+        # (and Prisma/NextAuth) can read them. Set these in the Amplify console.
+        - env | grep -E '^(DATABASE_URL|NEXTAUTH_SECRET|NEXTAUTH_URL)=' >> .env.production || true
         - npx prisma generate
         - npm run build
   artifacts:
