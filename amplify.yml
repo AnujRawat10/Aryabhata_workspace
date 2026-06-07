@@ -1,0 +1,22 @@
+# AWS Amplify Hosting build spec for this Next.js app.
+# Database migrations are NOT run here on purpose — run `prisma migrate deploy`
+# against your cloud database once from your laptop (see README/DEPLOYMENT).
+# Amplify provides DATABASE_URL / NEXTAUTH_SECRET / NEXTAUTH_URL as env vars.
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - npx prisma generate
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - "**/*"
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*
