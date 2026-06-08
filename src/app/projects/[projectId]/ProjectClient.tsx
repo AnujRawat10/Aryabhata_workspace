@@ -8,6 +8,7 @@ import { DecisionBadge } from "~/components/ui/DecisionBadge";
 import { EmptyState, ErrorState, LoadingSkeleton } from "~/components/ui/States";
 import { ReviewPanel } from "~/components/ReviewPanel";
 import { ProjectMembers } from "~/components/ProjectMembers";
+import { rowsToCsv, downloadCsv } from "~/lib/csv";
 
 type DecisionFilter = "INCLUDE" | "EXCLUDE" | "MAYBE" | "UNREVIEWED";
 type SortBy = "title" | "firstAuthor" | "journal" | "publicationYear" | "createdAt";
@@ -28,6 +29,7 @@ export function ProjectClient({ projectId }: { projectId: string }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [openArticleId, setOpenArticleId] = useState<string | null>(null);
   const [showMembers, setShowMembers] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const project = api.project.getById.useQuery({ projectId });
   const utils = api.useUtils();
@@ -56,6 +58,46 @@ export function ProjectClient({ projectId }: { projectId: string }) {
     },
     onError: (e) => toast.error(e.message),
   });
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      // Export everything matching the current filters (not just the page).
+      const rows = await utils.article.export.fetch({
+        projectId,
+        search: search.trim() || undefined,
+        decisions: decisions.length ? decisions : undefined,
+        yearMin: yearMin ? Number(yearMin) : undefined,
+        yearMax: yearMax ? Number(yearMax) : undefined,
+        sortBy,
+        sortDir,
+      });
+      if (rows.length === 0) {
+        toast.error("No articles match the current filters.");
+        return;
+      }
+      const csv = rowsToCsv(
+        ["PMID", "Title", "Authors", "First Author", "Journal", "Year", "DOI", "Decision", "Notes"],
+        rows.map((r) => [
+          r.pmid,
+          r.title,
+          r.authors,
+          r.firstAuthor,
+          r.journal,
+          r.publicationYear,
+          r.doi,
+          r.decision ?? "Unreviewed",
+          r.notes,
+        ]),
+      );
+      downloadCsv("articles.csv", csv);
+      toast.success(`Exported ${rows.length} article${rows.length === 1 ? "" : "s"}.`);
+    } catch {
+      toast.error("Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  }
 
   function toggleSort(col: SortBy) {
     if (sortBy === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -105,7 +147,14 @@ export function ProjectClient({ projectId }: { projectId: string }) {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+          >
+            {exporting ? "Exporting…" : "Export CSV"}
+          </button>
           <button
             onClick={() => setShowMembers((s) => !s)}
             className="rounded-md border border-gray-300 px-4 py-2 text-sm hover:bg-gray-50"

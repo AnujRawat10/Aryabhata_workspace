@@ -9,62 +9,69 @@ const PAGE_SIZE = 25;
 // Columns the table is allowed to sort by (decision/notes are per-user and omitted).
 const SORT_FIELDS = ["title", "firstAuthor", "journal", "publicationYear", "createdAt"] as const;
 
+const decisionFilter = z.array(z.enum(["INCLUDE", "EXCLUDE", "MAYBE", "UNREVIEWED"])).optional();
+
+// Shared filter shape used by both `list` and `export`.
+const filterInput = z.object({
+  projectId: z.string(),
+  search: z.string().optional(),
+  decisions: decisionFilter,
+  yearMin: z.number().int().optional(),
+  yearMax: z.number().int().optional(),
+  sortBy: z.enum(SORT_FIELDS).default("createdAt"),
+  sortDir: z.enum(["asc", "desc"]).default("desc"),
+});
+
+/** Build the Prisma `where` clause from the filters (kept in one place so list + export agree). */
+function buildWhere(
+  userId: string,
+  input: z.infer<typeof filterInput>,
+): Prisma.ArticleWhereInput {
+  const where: Prisma.ArticleWhereInput = { projectId: input.projectId };
+
+  if (input.search?.trim()) {
+    const q = input.search.trim();
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { authors: { contains: q, mode: "insensitive" } },
+      { journal: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  if (input.yearMin !== undefined || input.yearMax !== undefined) {
+    where.publicationYear = {
+      ...(input.yearMin !== undefined ? { gte: input.yearMin } : {}),
+      ...(input.yearMax !== undefined ? { lte: input.yearMax } : {}),
+    };
+  }
+
+  if (input.decisions && input.decisions.length > 0) {
+    const buckets: Prisma.ArticleWhereInput[] = [];
+    const concrete = input.decisions.filter((d) => d !== "UNREVIEWED") as (
+      | "INCLUDE"
+      | "EXCLUDE"
+      | "MAYBE"
+    )[];
+    if (concrete.length > 0) {
+      buckets.push({ reviewDecisions: { some: { userId, decision: { in: concrete } } } });
+    }
+    if (input.decisions.includes("UNREVIEWED")) {
+      buckets.push({ reviewDecisions: { none: { userId } } });
+    }
+    where.AND = [{ OR: buckets }];
+  }
+
+  return where;
+}
+
 export const articleRouter = createTRPCRouter({
   list: protectedProcedure
-    .input(
-      z.object({
-        projectId: z.string(),
-        search: z.string().optional(),
-        // Which decision buckets to show. UNREVIEWED = no decision by this user.
-        decisions: z.array(z.enum(["INCLUDE", "EXCLUDE", "MAYBE", "UNREVIEWED"])).optional(),
-        yearMin: z.number().int().optional(),
-        yearMax: z.number().int().optional(),
-        sortBy: z.enum(SORT_FIELDS).default("createdAt"),
-        sortDir: z.enum(["asc", "desc"]).default("desc"),
-        page: z.number().int().min(1).default(1),
-      }),
-    )
+    .input(filterInput.extend({ page: z.number().int().min(1).default(1) }))
     .query(async ({ ctx, input }) => {
       // AUTHZ: only project members can list articles.
       await requireProjectMember(ctx.db, ctx.session.user.id, input.projectId);
       const userId = ctx.session.user.id;
-
-      const where: Prisma.ArticleWhereInput = { projectId: input.projectId };
-
-      // Search across title, authors, journal.
-      if (input.search?.trim()) {
-        const q = input.search.trim();
-        where.OR = [
-          { title: { contains: q, mode: "insensitive" } },
-          { authors: { contains: q, mode: "insensitive" } },
-          { journal: { contains: q, mode: "insensitive" } },
-        ];
-      }
-
-      // Year range.
-      if (input.yearMin !== undefined || input.yearMax !== undefined) {
-        where.publicationYear = {
-          ...(input.yearMin !== undefined ? { gte: input.yearMin } : {}),
-          ...(input.yearMax !== undefined ? { lte: input.yearMax } : {}),
-        };
-      }
-
-      // Decision filter (per-user). Build an OR over the selected buckets.
-      if (input.decisions && input.decisions.length > 0) {
-        const buckets: Prisma.ArticleWhereInput[] = [];
-        const concrete = input.decisions.filter((d) => d !== "UNREVIEWED") as (
-          | "INCLUDE"
-          | "EXCLUDE"
-          | "MAYBE"
-        )[];
-        if (concrete.length > 0) {
-          buckets.push({ reviewDecisions: { some: { userId, decision: { in: concrete } } } });
-        }
-        if (input.decisions.includes("UNREVIEWED")) {
-          buckets.push({ reviewDecisions: { none: { userId } } });
-        }
-        where.AND = [{ OR: buckets }];
-      }
+      const where = buildWhere(userId, input);
 
       const [total, articles] = await ctx.db.$transaction([
         ctx.db.article.count({ where }),
@@ -93,6 +100,31 @@ export const articleRouter = createTRPCRouter({
 
       return { items, total, page: input.page, pageSize: PAGE_SIZE };
     }),
+
+  // Return every article matching the current filters (no pagination) for CSV export.
+  export: protectedProcedure.input(filterInput).query(async ({ ctx, input }) => {
+    await requireProjectMember(ctx.db, ctx.session.user.id, input.projectId);
+    const userId = ctx.session.user.id;
+    const where = buildWhere(userId, input);
+
+    const articles = await ctx.db.article.findMany({
+      where,
+      orderBy: { [input.sortBy]: input.sortDir },
+      include: { reviewDecisions: { where: { userId } } },
+    });
+
+    return articles.map((a) => ({
+      pmid: a.pmid,
+      title: a.title,
+      authors: a.authors,
+      firstAuthor: a.firstAuthor,
+      journal: a.journal,
+      publicationYear: a.publicationYear,
+      doi: a.doi,
+      decision: a.reviewDecisions[0]?.decision ?? null,
+      notes: a.reviewDecisions[0]?.notes ?? null,
+    }));
+  }),
 
   getById: protectedProcedure
     .input(z.object({ articleId: z.string() }))
