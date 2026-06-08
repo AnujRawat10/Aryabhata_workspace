@@ -95,18 +95,24 @@ export function DashboardClient() {
           )}
 
           {organization.projects.length === 0 ? (
-            <p className="text-sm text-gray-500">No projects yet.</p>
+            <p className="rounded-md bg-gray-50 px-3 py-4 text-center text-sm text-gray-500">
+              No projects yet{role === "OWNER" ? " — create one to get started." : "."}
+            </p>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {organization.projects.map((p) => (
-                <li key={p.id} className="flex items-center justify-between py-2">
-                  <Link href={`/projects/${p.id}`} className="font-medium text-blue-600 hover:underline">
-                    {p.name}
-                  </Link>
-                  <span className="text-sm text-gray-500">{p._count.articles} articles</span>
-                </li>
+                <Link
+                  key={p.id}
+                  href={`/projects/${p.id}`}
+                  className="group flex flex-col justify-between rounded-lg border border-gray-200 bg-white p-4 transition hover:border-blue-300 hover:shadow-sm"
+                >
+                  <span className="font-medium text-gray-900 group-hover:text-blue-700">{p.name}</span>
+                  <span className="mt-3 inline-flex w-fit items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                    {p._count.articles} {p._count.articles === 1 ? "article" : "articles"}
+                  </span>
+                </Link>
               ))}
-            </ul>
+            </div>
           )}
         </section>
       ))}

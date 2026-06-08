@@ -10,8 +10,13 @@ export default async function DashboardPage() {
   return (
     <>
       <AppHeader />
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <h1 className="mb-6 text-2xl font-semibold">Your workspaces</h1>
+      <main className="mx-auto w-full max-w-6xl px-4 py-8">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-gray-900">Your workspaces</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Organizations and projects you belong to. Open a project to import and review articles.
+          </p>
+        </div>
         <DashboardClient />
       </main>
     </>

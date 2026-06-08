@@ -38,9 +38,16 @@ export default function SignUpPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-lg bg-white p-6 shadow">
-        <h1 className="text-xl font-semibold">Create account</h1>
+    <main className="flex flex-1 items-center justify-center p-4">
+      <form
+        onSubmit={onSubmit}
+        className="relative z-10 w-full max-w-sm space-y-4 rounded-xl border-t-4 border-saffron-500 bg-white p-7 shadow-lg ring-1 ring-gray-100"
+      >
+        <div className="flex flex-col items-center text-center">
+          <img src="/logo_Aryabhattaapp.png" alt="Aryabhata Workspace" className="h-20 w-20 rounded-xl" />
+          <h1 className="mt-3 text-xl font-semibold">Create your account</h1>
+          <p className="text-sm text-gray-500">Join Aryabhata Workspace</p>
+        </div>
         <Field label="Name" type="text" value={name} onChange={setName} />
         <Field label="Email" type="email" value={email} onChange={setEmail} />
         <Field label="Password (min 8 chars)" type="password" value={password} onChange={setPassword} />

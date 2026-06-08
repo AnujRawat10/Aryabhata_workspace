@@ -226,54 +226,68 @@ export function ProjectClient({ projectId }: { projectId: string }) {
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
-              <tr>
-                <th className="w-10 px-3 py-3">
-                  <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+          <table className="min-w-full text-sm">
+            <thead className="sticky top-0 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+              <tr className="border-b border-gray-200">
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 cursor-pointer rounded border-gray-300"
+                  />
                 </th>
                 <SortableTh label="Title" col="title" {...{ sortBy, sortDir, toggleSort }} />
                 <SortableTh label="First Author" col="firstAuthor" {...{ sortBy, sortDir, toggleSort }} />
                 <SortableTh label="Journal" col="journal" {...{ sortBy, sortDir, toggleSort }} />
                 <SortableTh label="Year" col="publicationYear" {...{ sortBy, sortDir, toggleSort }} />
-                <th className="px-3 py-3">Decision</th>
-                <th className="px-3 py-3">Notes</th>
+                <th className="px-4 py-3">Decision</th>
+                <th className="px-4 py-3">Notes</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
-              {items.map((a) => (
-                <tr key={a.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selected.has(a.id)}
-                      onChange={() =>
-                        setSelected((prev) => {
-                          const next = new Set(prev);
-                          next.has(a.id) ? next.delete(a.id) : next.add(a.id);
-                          return next;
-                        })
-                      }
-                    />
-                  </td>
-                  <td className="max-w-md px-3 py-3">
-                    <button
-                      onClick={() => setOpenArticleId(a.id)}
-                      className="text-left font-medium text-blue-600 hover:underline"
-                    >
-                      {a.title ?? <span className="italic text-gray-400">(untitled)</span>}
-                    </button>
-                  </td>
-                  <td className="px-3 py-3 text-gray-700">{a.firstAuthor ?? "—"}</td>
-                  <td className="px-3 py-3 text-gray-700">{a.journal ?? "—"}</td>
-                  <td className="px-3 py-3 text-gray-700">{a.publicationYear ?? "—"}</td>
-                  <td className="px-3 py-3">
-                    <DecisionBadge decision={a.decision} />
-                  </td>
-                  <td className="max-w-xs truncate px-3 py-3 text-gray-500">{a.notes ?? "—"}</td>
-                </tr>
-              ))}
+            <tbody>
+              {items.map((a) => {
+                const isSelected = selected.has(a.id);
+                return (
+                  <tr
+                    key={a.id}
+                    className={`border-b border-gray-100 transition-colors last:border-0 ${
+                      isSelected ? "bg-blue-50/60" : "hover:bg-gray-50"
+                    }`}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() =>
+                          setSelected((prev) => {
+                            const next = new Set(prev);
+                            next.has(a.id) ? next.delete(a.id) : next.add(a.id);
+                            return next;
+                          })
+                        }
+                        className="h-4 w-4 cursor-pointer rounded border-gray-300"
+                      />
+                    </td>
+                    <td className="max-w-md px-4 py-3">
+                      <button
+                        onClick={() => setOpenArticleId(a.id)}
+                        className="line-clamp-2 text-left font-medium text-gray-900 hover:text-blue-700 hover:underline"
+                      >
+                        {a.title ?? <span className="italic text-gray-400">(untitled)</span>}
+                      </button>
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-gray-600">{a.firstAuthor ?? "—"}</td>
+                    <td className="px-4 py-3 text-gray-600">{a.journal ?? "—"}</td>
+                    <td className="px-4 py-3 text-gray-600">{a.publicationYear ?? "—"}</td>
+                    <td className="px-4 py-3">
+                      <DecisionBadge decision={a.decision} />
+                    </td>
+                    <td className="max-w-xs truncate px-4 py-3 text-gray-500">{a.notes ?? "—"}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -3,5 +3,8 @@
 @tailwind utilities;
 
 body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+  @apply text-gray-900 antialiased;
+  /* Soft saffron (bhagwa) -> blue ambient wash behind all content. */
+  background: linear-gradient(180deg, #fff7ed 0%, #f8fafc 45%, #eff6ff 100%);
+  background-attachment: fixed;
 }

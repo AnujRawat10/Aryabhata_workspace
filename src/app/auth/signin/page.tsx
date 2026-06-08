@@ -27,12 +27,18 @@ export default function SignInPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm space-y-4 rounded-lg bg-white p-6 shadow">
-        <h1 className="text-xl font-semibold">Sign in</h1>
-        <p className="text-sm text-gray-500">
-          Demo accounts: <code>admin@demo.com</code> / <code>reviewer@demo.com</code> — password{" "}
-          <code>password123</code>
+    <main className="flex flex-1 items-center justify-center p-4">
+      <form
+        onSubmit={onSubmit}
+        className="relative z-10 w-full max-w-sm space-y-4 rounded-xl border-t-4 border-saffron-500 bg-white p-7 shadow-lg ring-1 ring-gray-100"
+      >
+        <div className="flex flex-col items-center text-center">
+          <img src="/logo_Aryabhattaapp.png" alt="Aryabhata Workspace" className="h-20 w-20 rounded-xl" />
+          <h1 className="mt-3 text-xl font-semibold">Welcome back</h1>
+          <p className="text-sm text-gray-500">Sign in to Aryabhata Workspace</p>
+        </div>
+        <p className="rounded-md border border-saffron-200 bg-saffron-50 p-2 text-center text-xs text-gray-700">
+          Demo: <code>admin@demo.com</code> / <code>reviewer@demo.com</code> · <code>password123</code>
         </p>
         <Field label="Email" type="email" value={email} onChange={setEmail} />
         <Field label="Password" type="password" value={password} onChange={setPassword} />
