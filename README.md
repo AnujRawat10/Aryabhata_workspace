@@ -15,10 +15,9 @@ Demo logins (password `password123` for both):
 You need Node 18+ and PostgreSQL.
 
 npm install
-npx prisma migrate dev      # create the tables
-npx prisma db seed          # demo users + the sample articles
-npm run dev                 # http://localhost:3002
-
+npx prisma migrate dev     
+npx prisma db seed         
+npm run dev                
 
 ## Architecture
 
